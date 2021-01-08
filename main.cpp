@@ -20,7 +20,61 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.*
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
-int main() {
+#define WIDTH 720
+#define HEIGHT 480
 
+static SDL_Window *window;
+static SDL_Surface *windowSurface;
+static SDL_Surface *backgroundImage;
+static bool quitted;
+
+SDL_Surface *LoadBackground(const char *path) {
+  SDL_Surface *background;
+  SDL_Surface *optimizedBackground;
+  background = IMG_Load(path);
+  optimizedBackground = SDL_ConvertSurface(background, windowSurface->format, 0);
+  SDL_FreeSurface(background);
+  return optimizedBackground;
+}
+
+void PutResourcesToScreen() {
+  SDL_BlitSurface(backgroundImage, 0, windowSurface, 0);
+  SDL_UpdateWindowSurface(window);
+}
+
+void Init() {
+  SDL_Init(SDL_INIT_EVERYTHING);
+  IMG_Init(IMG_INIT_PNG);
+  window = SDL_CreateWindow("ScratchCatchRecreation", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  windowSurface = SDL_GetWindowSurface(window);
+  backgroundImage = LoadBackground("background.png");
+  PutResourcesToScreen();
+}
+
+void Quit(int status) {
+  SDL_FreeSurface(backgroundImage);
+  SDL_DestroyWindow(window);
+  IMG_Quit();
+  SDL_Quit();
+  exit(status);
+}
+
+void ProcessInput() {
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+      case SDL_QUIT:
+        quitted = 1;
+        break;
+    }
+  }
+}
+
+int main() {
+  Init();
+  while(!quitted) {
+    ProcessInput();
+  }
+  Quit(0);
   return 0;
 }
