@@ -27,6 +27,10 @@ static SDL_Window *window;
 static SDL_Surface *windowSurface;
 static SDL_Surface *backgroundImage;
 static bool quitted;
+static SDL_Rect paddlePosition;
+static SDL_Color green;
+static SDL_Color red;
+static SDL_Color blue;
 
 SDL_Surface *LoadBackground(const char *path) {
   SDL_Surface *background;
@@ -37,8 +41,13 @@ SDL_Surface *LoadBackground(const char *path) {
   return optimizedBackground;
 }
 
+void drawPaddle(SDL_Rect position, SDL_Color color) {
+  SDL_FillRect(windowSurface, &position, SDL_MapRGB(windowSurface->format, color.r, color.g, color.b));
+}
+
 void PutResourcesToScreen() {
   SDL_BlitSurface(backgroundImage, 0, windowSurface, 0);
+  drawPaddle(paddlePosition, green);
   SDL_UpdateWindowSurface(window);
 }
 
@@ -48,6 +57,10 @@ void Init() {
   window = SDL_CreateWindow("ScratchCatchRecreation", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
   windowSurface = SDL_GetWindowSurface(window);
   backgroundImage = LoadBackground("background.png");
+  paddlePosition = {250, 390, 180, 50};
+  green = {0, 92, 3};
+  red = {209, 15, 15};
+  blue = {0, 50, 130};
   PutResourcesToScreen();
 }
 
