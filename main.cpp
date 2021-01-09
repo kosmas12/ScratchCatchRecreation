@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.*
 #include <iostream>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <chrono>
 
 #define WIDTH 720
 #define HEIGHT 480
@@ -32,9 +33,9 @@ static SDL_Rect circlePosition;
 static SDL_Color green;
 static SDL_Color red;
 static SDL_Color blue;
-static int steps = 5;
+static int steps = 10;
 static SDL_Surface *paddle;
-SDL_Surface *transparent;
+static int radius = 20;
 
 SDL_Surface *LoadBackground(const char *path) {
   SDL_Surface *background;
@@ -65,7 +66,17 @@ void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
   SDL_UpdateWindowSurface(window);
 }
 
+void eraseOldCircle() {
+  SDL_Rect oldPos = {circlePosition.x-(radius+steps), circlePosition.y-(radius+steps), radius*radius, radius*2+steps};
+  SDL_BlitSurface(backgroundImage, &oldPos, windowSurface, &oldPos);
+}
+
 void Circle(int center_x, int center_y, int radius, SDL_Color color){
+  if (center_y == paddlePosition.y) {
+    center_y = 30;
+  }
+  eraseOldCircle();
+
   uint32_t *pixels = (uint32_t *) windowSurface->pixels;
   SDL_PixelFormat *windowFormat = windowSurface->format;
   SDL_LockSurface(windowSurface);
@@ -98,19 +109,18 @@ void Init() {
   windowSurface = SDL_GetWindowSurface(window);
   backgroundImage = LoadBackground("background.png");
   paddlePosition = {250, 390, 180, 50};
-  circlePosition = {345, 300, 0, 0}; // Width and height don't matter here
+  circlePosition = {345, 30, 0, 0}; // Width and height don't matter here
   paddle = SDL_CreateRGBSurface(0, 180, 50, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
   green = {0, 92, 3};
   red = {209, 15, 15};
   blue = {0, 50, 130};
-  transparent = SDL_CreateRGBSurface(0, paddlePosition.w, paddlePosition.h, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
-  SDL_FillRect(transparent, NULL, SDL_MapRGBA(transparent->format, 255, 255, 255, 0));
   PutResourcesToScreen();
 }
 
 void Quit(int status) {
   SDL_FreeSurface(backgroundImage);
   SDL_DestroyWindow(window);
+  SDL_FreeSurface(paddle);
   IMG_Quit();
   SDL_Quit();
   exit(status);
@@ -122,6 +132,7 @@ void ProcessInput() {
     switch (event.type) {
       case SDL_QUIT:
         quitted = true;
+        Quit(0);
         break;
       case SDL_KEYDOWN:
         switch (event.key.keysym.sym) {
@@ -142,9 +153,15 @@ void ProcessInput() {
 int main() {
   Init();
   while(!quitted) {
-    ProcessInput();
-    /*  circlePosition.y++;
-    Circle(circlePosition.x, circlePosition.y, 20, red);*/
+    while (circlePosition.y + radius < paddlePosition.y) {
+      drawPaddle(paddlePosition, green, 0);
+      SDL_Delay(50/steps); //
+      circlePosition.y++;
+      Circle(circlePosition.x, circlePosition.y, radius, red);
+      ProcessInput();
+    }
+    eraseOldCircle();
+    circlePosition.y = 30;
   }
   Quit(0);
   return 0;
