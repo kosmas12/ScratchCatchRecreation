@@ -58,7 +58,7 @@ void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
   }
   prevPosition.y = position.y;
   prevPosition.h = position.h;
-  SDL_BlitSurface(backgroundImage, &position, paddle, NULL);
+  SDL_BlitSurface(backgroundImage, &prevPosition, paddle, NULL);
   SDL_BlitSurface(paddle, NULL, windowSurface, &prevPosition);
   SDL_FillRect(paddle, NULL, SDL_MapRGBA(paddle->format, color.r, color.g, color.b, 255));
   SDL_BlitSurface(paddle, NULL, windowSurface, &position);
