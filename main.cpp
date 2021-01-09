@@ -45,13 +45,21 @@ SDL_Surface *LoadBackground(const char *path) {
   return optimizedBackground;
 }
 
-void drawPaddle(SDL_Rect position, SDL_Color color) {
-  SDL_Rect prevPosition = position;
-  prevPosition.x-=steps;
-  prevPosition.w+=steps;
-  SDL_SetColorKey(windowSurface, SDL_TRUE, SDL_MapRGBA(windowSurface->format, 0, 0, 0, 0));
-  SDL_FillRect(windowSurface, &prevPosition, SDL_MapRGBA(paddle->format, 0, 0, 0, 0));
-  //SDL_BlitSurface(paddle, NULL, windowSurface, &prevPosition);
+void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
+  SDL_Rect prevPosition;
+  //direction 0 = left, direction 1 = right
+  if (direction == 0) {
+    prevPosition.x = position.x + steps;
+    prevPosition.w = position.w + steps;
+  }
+  else {
+    prevPosition.x = position.x - steps;
+    prevPosition.w = position.w - steps;
+  }
+  prevPosition.y = position.y;
+  prevPosition.h = position.h;
+  SDL_BlitSurface(backgroundImage, &position, paddle, NULL);
+  SDL_BlitSurface(paddle, NULL, windowSurface, &prevPosition);
   SDL_FillRect(paddle, NULL, SDL_MapRGBA(paddle->format, color.r, color.g, color.b, 255));
   SDL_BlitSurface(paddle, NULL, windowSurface, &position);
   SDL_UpdateWindowSurface(window);
@@ -78,7 +86,7 @@ void Circle(int center_x, int center_y, int radius, SDL_Color color){
 
 void PutResourcesToScreen() {
   SDL_BlitSurface(backgroundImage, 0, windowSurface, 0);
-  drawPaddle(paddlePosition, green);
+  drawPaddle(paddlePosition, green, 0);
   Circle(circlePosition.x, circlePosition.y, 20, green);
   SDL_UpdateWindowSurface(window);
 }
@@ -95,8 +103,8 @@ void Init() {
   green = {0, 92, 3};
   red = {209, 15, 15};
   blue = {0, 50, 130};
-  transparent = SDL_CreateRGBSurfaceWithFormat(0, paddlePosition.w, paddlePosition.h, 32, SDL_GetWindowPixelFormat(window));
-  SDL_FillRect(transparent, NULL, SDL_MapRGBA(transparent->format, 0, 0, 0, 0));
+  transparent = SDL_CreateRGBSurface(0, paddlePosition.w, paddlePosition.h, 32, 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000);
+  SDL_FillRect(transparent, NULL, SDL_MapRGBA(transparent->format, 255, 255, 255, 0));
   PutResourcesToScreen();
 }
 
@@ -119,11 +127,11 @@ void ProcessInput() {
         switch (event.key.keysym.sym) {
           case SDLK_LEFT:
             paddlePosition.x-=steps;
-            drawPaddle(paddlePosition, green);
+            drawPaddle(paddlePosition, green, 0);
             break;
           case SDLK_RIGHT:
             paddlePosition.x+=steps;
-            drawPaddle(paddlePosition, green);
+            drawPaddle(paddlePosition, green, 1);
             break;
         }
         break;
