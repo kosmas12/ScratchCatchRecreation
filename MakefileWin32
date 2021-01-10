@@ -1,2 +1,2 @@
 all:
-	i686-w64-mingw32-g++ main.cpp -o ScratchCatchRecreation.exe -lSDL2main -lSDL2 -lSDL2_image -mwindows -static-libgcc -static-libstdc++
+	i686-w64-mingw32-g++ main.cpp -o ScratchCatchRecreation.exe -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -mwindows -static-libgcc -static-libstdc++
