@@ -60,14 +60,16 @@ SDL_Surface *LoadBackground(const char *path) {
   SDL_Surface *background;
   SDL_Surface *optimizedBackground;
   background = IMG_Load(path);
+  // Optimization here is basically making it use the window's pixel format so SDL doesn't have to convert it on every blit.
   optimizedBackground = SDL_ConvertSurface(background, windowSurface->format, 0);
+  // No need for the original anymore
   SDL_FreeSurface(background);
   return optimizedBackground;
 }
 
-void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
+void drawPaddle(SDL_Rect position, SDL_Color color, int direction) { //direction 0 = left, direction 1 = right
   SDL_Rect prevPosition;
-  //direction 0 = left, direction 1 = right
+  // Calculate previous position, paddle has only moved the number of steps
   if (direction == 0) {
     prevPosition.x = position.x + paddleSteps;
     prevPosition.w = position.w + paddleSteps;
@@ -78,25 +80,23 @@ void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
   }
   prevPosition.y = position.y;
   prevPosition.h = position.h;
-  // Copy the part of the background image that the paddle overwrote in its previous position back to the window
+  // Copy the part of the background image that the paddle overwrote in the previous position back to the window
   SDL_BlitSurface(backgroundImage, &prevPosition, windowSurface, &prevPosition);
   // Fill entire paddle with color
-  SDL_FillRect(paddle, NULL, SDL_MapRGB(paddle->format, color.r, color.g, color.b));
+  SDL_FillRect(paddle, nullptr, SDL_MapRGB(paddle->format, color.r, color.g, color.b));
   // Copy paddle to screen in the position defined by the position SDL_Rect
-  SDL_BlitSurface(paddle, NULL, windowSurface, &position);
+  SDL_BlitSurface(paddle, nullptr, windowSurface, &position);
   // Apply changes to window
   SDL_UpdateWindowSurface(window);
 }
 
 void eraseOldCircle() {
-  SDL_Rect oldPos = {circlePosition.x-(radius+paddleSteps), circlePosition.y-(radius+paddleSteps), radius*radius, radius*2+paddleSteps};
-  SDL_BlitSurface(backgroundImage, &oldPos, windowSurface, &oldPos);
+  //Calculate position of ball
+  SDL_Rect pos = {circlePosition.x-(radius+paddleSteps), circlePosition.y-(radius+paddleSteps), radius*radius, radius*2+paddleSteps};
+  SDL_BlitSurface(backgroundImage, &pos, windowSurface, &pos);
 }
 
-void Circle(int center_x, int center_y, int radius, SDL_Color color) {
-  if (center_y == paddlePosition.y) {
-    center_y = 30;
-  }
+void Circle(int center_x, int center_y, int radius, SDL_Color color) { // TODO: Optimize (Don't use pow() because it's slow)
   eraseOldCircle();
 
   uint32_t *pixels = (uint32_t *) windowSurface->pixels;
@@ -118,7 +118,7 @@ void Circle(int center_x, int center_y, int radius, SDL_Color color) {
 }
 
 void PutResourcesToScreen() {
-  SDL_BlitSurface(backgroundImage, 0, windowSurface, 0); // Copy background to window
+  SDL_BlitSurface(backgroundImage, nullptr, windowSurface, nullptr); // Copy background to window
   drawPaddle(paddlePosition, green, 0);
   SDL_UpdateWindowSurface(window);
 }
@@ -158,7 +158,7 @@ int Init() {
   windowSurface = SDL_GetWindowSurface(window);
   backgroundImage = LoadBackground(HOME"background.png");
   paddlePosition = {250, 390, 180, 50};
-  circlePosition = {345, 70, 0, 0}; // Width and height don't matter here
+  circlePosition = {345, 60, 0, 0}; // Width and height don't matter here
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
   Uint32 Rmask = 0x000000FF;
   Uint32 Gmask = 0x0000FF00;
@@ -186,6 +186,8 @@ void Quit(int status) {
   SDL_FreeSurface(backgroundImage);
   SDL_DestroyWindow(window);
   SDL_FreeSurface(paddle);
+  TTF_CloseFont(font);
+  TTF_Quit();
   IMG_Quit();
   SDL_Quit();
   exit(status);
@@ -233,15 +235,19 @@ Uint32 get_pixel32(SDL_Surface *surface, int x, int y ) {
   return pixels[ ( y * surface->w ) + x ];
 }
 
-int compare(SDL_Surface *paddle, SDL_Surface *circle) {
+int compare(SDL_Surface *paddleSurface, SDL_Surface *circleSurface) {
   SDL_Color circleRGB;
-  Uint32 circlePixel = get_pixel32(circle, circlePosition.x, circlePosition.y);
-  SDL_UnlockSurface(circle);
-  SDL_GetRGB(circlePixel, windowSurface->format, &circleRGB.r, &circleRGB.g, &circleRGB.b);
+  // Get pixel data from the circle, whole circle is same color so all pixels are same
+  Uint32 circlePixel = get_pixel32(circleSurface, circlePosition.x, circlePosition.y);
+  // Unlock surface since get_pixel doesn't unlock automatically
+  SDL_UnlockSurface(circleSurface);
+  SDL_GetRGB(circlePixel, windowSurface->format, &circleRGB.r, &circleRGB.g, &circleRGB.b); // Get color from pixel data
   SDL_Color paddleRGB;
-  Uint32 paddlePixel = get_pixel32(paddle, 10, 10);
-  SDL_UnlockSurface(paddle);
-  SDL_GetRGB(paddlePixel, paddle->format, &paddleRGB.r, &paddleRGB.g, &paddleRGB.b);
+  // Same as circle, but for paddle. Using a different x y value within the paddle's range should have no different result
+  Uint32 paddlePixel = get_pixel32(paddleSurface, 10, 10);
+  SDL_UnlockSurface(paddleSurface);
+  SDL_GetRGB(paddlePixel, paddleSurface->format, &paddleRGB.r, &paddleRGB.g, &paddleRGB.b);
+  // Check if colors are same and if the circle is within the paddle's range
   if (paddleRGB.r == circleRGB.r && paddleRGB.g == circleRGB.g && paddleRGB.b == circleRGB.b
   && circlePosition.x > paddlePosition.x && circlePosition.x < (paddlePosition.x + paddlePosition.w)) {
     return 1;
@@ -252,7 +258,7 @@ int compare(SDL_Surface *paddle, SDL_Surface *circle) {
 void startNewCircle() {
   eraseOldCircle();
   circlePosition.y = 60;
-  srand(time(NULL));
+  srand(time(nullptr));
   circlePosition.x = (rand() + radius*2) % 620;
 }
 
@@ -262,9 +268,9 @@ void PrintScore() {
   std::stringstream scoreStream;
   scoreStream << "Score: " << score;
   std::string scoreString = scoreStream.str();
-  SDL_Surface *score = TTF_RenderText_Blended(font, scoreString.c_str(), red);
+  SDL_Surface *scoreText = TTF_RenderText_Blended(font, scoreString.c_str(), red);
   scoreStream.str("");
-  SDL_BlitSurface(score, NULL, windowSurface, &scorePos);
+  SDL_BlitSurface(scoreText, nullptr, windowSurface, &scorePos);
 }
 
 void ChangeScore() {
@@ -286,7 +292,7 @@ int main() {
     SDL_Color circleColor = colors[rand() % 3];
     while (circlePosition.y + radius < paddlePosition.y) {
       drawPaddle(paddlePosition, currentColor, 0);
-      SDL_Delay(50/ballSteps);
+      SDL_Delay(50/ballSteps); // The more steps, the smaller the wait is, thus movement is faster
       Circle(circlePosition.x, circlePosition.y, radius, circleColor);
       ProcessInput();
       circlePosition.y++;
