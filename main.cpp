@@ -78,10 +78,13 @@ void drawPaddle(SDL_Rect position, SDL_Color color, int direction) {
   }
   prevPosition.y = position.y;
   prevPosition.h = position.h;
-  SDL_BlitSurface(backgroundImage, &prevPosition, paddle, NULL);
-  SDL_BlitSurface(paddle, NULL, windowSurface, &prevPosition);
+  // Copy the part of the background image that the paddle overwrote in its previous position back to the window
+  SDL_BlitSurface(backgroundImage, &prevPosition, windowSurface, &prevPosition);
+  // Fill entire paddle with color
   SDL_FillRect(paddle, NULL, SDL_MapRGB(paddle->format, color.r, color.g, color.b));
+  // Copy paddle to screen in the position defined by the position SDL_Rect
   SDL_BlitSurface(paddle, NULL, windowSurface, &position);
+  // Apply changes to window
   SDL_UpdateWindowSurface(window);
 }
 
@@ -98,7 +101,7 @@ void Circle(int center_x, int center_y, int radius, SDL_Color color) {
 
   uint32_t *pixels = (uint32_t *) windowSurface->pixels;
   SDL_PixelFormat *windowFormat = windowSurface->format;
-  SDL_LockSurface(windowSurface);
+  SDL_LockSurface(windowSurface); // Lock surface for direct pixel access capability
 
   for(int x=center_x-radius; x<=center_x+radius; x++) {
 
@@ -115,7 +118,7 @@ void Circle(int center_x, int center_y, int radius, SDL_Color color) {
 }
 
 void PutResourcesToScreen() {
-  SDL_BlitSurface(backgroundImage, 0, windowSurface, 0);
+  SDL_BlitSurface(backgroundImage, 0, windowSurface, 0); // Copy background to window
   drawPaddle(paddlePosition, green, 0);
   SDL_UpdateWindowSurface(window);
 }
@@ -239,7 +242,8 @@ int compare(SDL_Surface *paddle, SDL_Surface *circle) {
   Uint32 paddlePixel = get_pixel32(paddle, 10, 10);
   SDL_UnlockSurface(paddle);
   SDL_GetRGB(paddlePixel, paddle->format, &paddleRGB.r, &paddleRGB.g, &paddleRGB.b);
-  if (paddleRGB.r == circleRGB.r && paddleRGB.g == circleRGB.g && paddleRGB.b == circleRGB.b) {
+  if (paddleRGB.r == circleRGB.r && paddleRGB.g == circleRGB.g && paddleRGB.b == circleRGB.b
+  && circlePosition.x > paddlePosition.x && circlePosition.x < (paddlePosition.x + paddlePosition.w)) {
     return 1;
   }
   return 0;
