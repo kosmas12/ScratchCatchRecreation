@@ -54,6 +54,7 @@ static int currentColorNum = 0;
 static SDL_Color currentColor;
 static int score = 0;
 static TTF_Font *font;
+static SDL_GameController *controller;
 
 
 SDL_Surface *LoadBackground(const char *path) {
@@ -103,11 +104,13 @@ void Circle(int center_x, int center_y, int radius, SDL_Color color) { // TODO: 
   SDL_PixelFormat *windowFormat = windowSurface->format;
   SDL_LockSurface(windowSurface); // Lock surface for direct pixel access capability
 
+  int radiussqrd = radius * radius;
+
   for(int x=center_x-radius; x<=center_x+radius; x++) {
-
+    int dx = center_x - x;
     for(int y=center_y-radius; y<=center_y+radius; y++) {
-
-      if((std::pow(center_y-y,2)+std::pow(center_x-x,2)) <= std::pow(radius,2)){
+      int dy = center_y - y;
+      if((dy * dy + dx * dx) <= radiussqrd) {
         pixels[(y * WIDTH + x)] = SDL_MapRGB(windowFormat, color.r, color.g, color.b);
       }
     }
@@ -123,22 +126,62 @@ void PutResourcesToScreen() {
   SDL_UpdateWindowSurface(window);
 }
 
+void OpenFirstController() {
+  //Open controller
+
+  for (int i = 0; i < SDL_NumJoysticks(); i++) { // For the time that i is smaller than the number of connected Joysticks
+    if(SDL_IsGameController(i)) { // If i (which we use to iterate through the connected controllers) as a port number is a Game Controller
+      controller = SDL_GameControllerOpen(i); // Open the controller
+      if(controller) { // If we find that we opened a controller
+        break; // Exit the loop
+      }
+    }
+  }
+}
+
+void CloseFirstController() {
+  if (controller != NULL) {
+    SDL_GameControllerClose(controller);
+#if !defined(NXDK)
+    std::cout << "Controller 1 closed." << std::endl;
+#endif
+  }
+}
+
+void Quit(int status) {
+  SDL_FreeSurface(backgroundImage);
+  SDL_DestroyWindow(window);
+  SDL_FreeSurface(paddle);
+  CloseFirstController();
+  TTF_CloseFont(font);
+  TTF_Quit();
+  IMG_Quit();
+  SDL_Quit();
+  exit(status);
+}
+
 int Init() {
 
 #if defined(NXDK)
   XVideoSetMode(WIDTH, HEIGHT, 32, REFRESH_DEFAULT);
 #endif
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER) != 0) {
+#if !defined(NXDK)
     std::cout << "Couldn't initialize SDL! Reason: " << SDL_GetError() << std::endl;
+#endif
     exit(1);
   }
   if (IMG_Init(IMG_INIT_PNG) < 0) {
+#if !defined(NXDK)
     std::cout << "Couldn't initialize SDL_image! Reason: " << SDL_GetError() << std::endl;
+#endif
     SDL_Quit();
     exit(2);
   }
   if (TTF_Init() != 0) {
+#if !defined(NXDK)
     std::cout << "Couldn't initialize SDL_ttf! Reason: " << SDL_GetError() << std::endl;
+#endif
     IMG_Quit();
     SDL_Quit();
     exit(3);
@@ -147,7 +190,9 @@ int Init() {
   font = TTF_OpenFont(HOME"Roboto-Regular.ttf", 20);
 
   if (!font) {
+#if !defined(NXDK)
     std::cout << "Couldn't initialize font! Reason: " << SDL_GetError() << std::endl;
+#endif
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
@@ -155,6 +200,12 @@ int Init() {
   }
 
   window = SDL_CreateWindow("ScratchCatchRecreation", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+  if (!window) {
+#if !defined(NXDK)
+    std::cout << "Couldn't create Window! Reason: " << SDL_GetError() << std::endl;
+#endif
+    Quit(5);
+  }
   windowSurface = SDL_GetWindowSurface(window);
   backgroundImage = LoadBackground(HOME"background.png");
   paddlePosition = {250, 390, 180, 50};
@@ -178,25 +229,41 @@ int Init() {
   colors[1] = red;
   colors[2] = blue;
   currentColor = colors[currentColorNum];
+  OpenFirstController();
   PutResourcesToScreen();
   return 0;
-}
-
-void Quit(int status) {
-  SDL_FreeSurface(backgroundImage);
-  SDL_DestroyWindow(window);
-  SDL_FreeSurface(paddle);
-  TTF_CloseFont(font);
-  TTF_Quit();
-  IMG_Quit();
-  SDL_Quit();
-  exit(status);
 }
 
 void ProcessInput() {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
+      case SDL_CONTROLLERBUTTONDOWN:
+        switch (event.cbutton.button) {
+          case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            paddlePosition.x-=10;
+            drawPaddle(paddlePosition, green, 0);
+            break;
+          case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            paddlePosition.x+=10;
+            drawPaddle(paddlePosition, green, 1);
+            break;
+          case SDL_CONTROLLER_BUTTON_A:
+            if (currentColorNum < 2) {
+              currentColorNum++;
+            }
+            else {
+              currentColorNum = 0;
+            }
+            currentColor = colors[currentColorNum];
+        }
+        break;
+      case SDL_CONTROLLERDEVICEADDED:
+        OpenFirstController();
+        break;
+      case SDL_CONTROLLERDEVICEREMOVED:
+        CloseFirstController();
+        break;
       case SDL_QUIT:
         quitted = true;
         Quit(0);
@@ -271,6 +338,7 @@ void PrintScore() {
   SDL_Surface *scoreText = TTF_RenderText_Blended(font, scoreString.c_str(), red);
   scoreStream.str("");
   SDL_BlitSurface(scoreText, nullptr, windowSurface, &scorePos);
+  SDL_FreeSurface(scoreText);
 }
 
 void ChangeScore() {
