@@ -55,6 +55,10 @@ static SDL_Color currentColor;
 static int score = 0;
 static TTF_Font *font;
 static SDL_GameController *controller;
+static SDL_AudioDeviceID deviceId;
+static SDL_AudioSpec wavSpec;
+static Uint32 wavLength;
+static Uint8 *wavBuffer;
 
 
 SDL_Surface *LoadBackground(const char *path) {
@@ -165,7 +169,7 @@ int Init() {
 #if defined(NXDK)
   XVideoSetMode(WIDTH, HEIGHT, 32, REFRESH_DEFAULT);
 #endif
-  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_AUDIO) != 0) {
 #if !defined(NXDK)
     std::cout << "Couldn't initialize SDL! Reason: " << SDL_GetError() << std::endl;
 #endif
@@ -231,6 +235,15 @@ int Init() {
   currentColor = colors[currentColorNum];
   OpenFirstController();
   PutResourcesToScreen();
+   if(SDL_LoadWAV("win.wav", &wavSpec, &wavBuffer, &wavLength) == NULL) {
+     std::cout << "Couldn't load wav file. Reason: " << SDL_GetError() << std::endl;
+   }
+  deviceId = SDL_OpenAudioDevice(NULL, 0, &wavSpec, NULL, 0);
+  if (!deviceId) {
+#if !defined(NXDK)
+    std::cout << "The audio device couldn't be opened, thus audio playback is impossible. Reason: " << SDL_GetError() << std::endl;
+  }
+#endif
   return 0;
 }
 
@@ -343,6 +356,8 @@ void PrintScore() {
 
 void ChangeScore() {
   if (compare(paddle, windowSurface)) {
+    SDL_QueueAudio(deviceId, wavBuffer, wavLength);
+    SDL_PauseAudioDevice(deviceId, 0);
     score++;
   }
   else {
