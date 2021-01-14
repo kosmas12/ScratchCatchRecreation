@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.*
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <hal/debug.h>
 #define HOME "D:\\"
 #else
 #include <SDL2/SDL.h>
@@ -33,7 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.*
 #include <random>
 #include <sstream>
 
-#define WIDTH 720
+#define WIDTH 640
 #define HEIGHT 480
 
 static SDL_Window *window;
@@ -60,6 +61,13 @@ static SDL_AudioSpec wavSpec;
 static Uint32 wavLength;
 static Uint8 *wavBuffer;
 
+void printLn(const char *string) {
+#if defined(NXDK)
+  debugPrint("%s\n", string);
+#else
+  std::cout << string << std::endl;
+#endif
+}
 
 SDL_Surface *LoadBackground(const char *path) {
   SDL_Surface *background;
@@ -101,7 +109,7 @@ void eraseOldCircle() {
   SDL_BlitSurface(backgroundImage, &pos, windowSurface, &pos);
 }
 
-void Circle(int center_x, int center_y, int radius, SDL_Color color) { // TODO: Optimize (Don't use pow() because it's slow)
+void Circle(int center_x, int center_y, int radius, SDL_Color color) {
   eraseOldCircle();
 
   uint32_t *pixels = (uint32_t *) windowSurface->pixels;
@@ -137,18 +145,18 @@ void OpenFirstController() {
     if(SDL_IsGameController(i)) { // If i (which we use to iterate through the connected controllers) as a port number is a Game Controller
       controller = SDL_GameControllerOpen(i); // Open the controller
       if(controller) { // If we find that we opened a controller
+        printLn("Controller 1 opened");
         break; // Exit the loop
       }
     }
   }
+  printLn("No controller opened");
 }
 
 void CloseFirstController() {
   if (controller != NULL) {
     SDL_GameControllerClose(controller);
-#if !defined(NXDK)
-    std::cout << "Controller 1 closed." << std::endl;
-#endif
+    printLn("Controller 1 closed.");
   }
 }
 
@@ -170,22 +178,19 @@ int Init() {
   XVideoSetMode(WIDTH, HEIGHT, 32, REFRESH_DEFAULT);
 #endif
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_AUDIO) != 0) {
-#if !defined(NXDK)
-    std::cout << "Couldn't initialize SDL! Reason: " << SDL_GetError() << std::endl;
-#endif
+    printLn("Couldn't initialize SDL! Reason: ");
+    printLn(SDL_GetError());
     exit(1);
   }
   if (IMG_Init(IMG_INIT_PNG) < 0) {
-#if !defined(NXDK)
-    std::cout << "Couldn't initialize SDL_image! Reason: " << SDL_GetError() << std::endl;
-#endif
+    printLn("Couldn't initialize SDL_image! Reason: ");
+    printLn(SDL_GetError());
     SDL_Quit();
     exit(2);
   }
   if (TTF_Init() != 0) {
-#if !defined(NXDK)
-    std::cout << "Couldn't initialize SDL_ttf! Reason: " << SDL_GetError() << std::endl;
-#endif
+    printLn("Couldn't initialize SDL_ttf! Reason: ");
+    printLn(SDL_GetError());
     IMG_Quit();
     SDL_Quit();
     exit(3);
@@ -194,9 +199,8 @@ int Init() {
   font = TTF_OpenFont(HOME"Roboto-Regular.ttf", 20);
 
   if (!font) {
-#if !defined(NXDK)
-    std::cout << "Couldn't initialize font! Reason: " << SDL_GetError() << std::endl;
-#endif
+    printLn("Couldn't initialize font! Reason: ");
+    printLn(SDL_GetError());
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();
@@ -205,9 +209,8 @@ int Init() {
 
   window = SDL_CreateWindow("ScratchCatchRecreation", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
   if (!window) {
-#if !defined(NXDK)
-    std::cout << "Couldn't create Window! Reason: " << SDL_GetError() << std::endl;
-#endif
+    printLn( "Couldn't create Window! Reason: ");
+    printLn(SDL_GetError());
     Quit(5);
   }
   windowSurface = SDL_GetWindowSurface(window);
@@ -235,15 +238,15 @@ int Init() {
   currentColor = colors[currentColorNum];
   OpenFirstController();
   PutResourcesToScreen();
-   if(SDL_LoadWAV("win.wav", &wavSpec, &wavBuffer, &wavLength) == NULL) {
-     std::cout << "Couldn't load wav file. Reason: " << SDL_GetError() << std::endl;
+   if(SDL_LoadWAV(HOME"win.wav", &wavSpec, &wavBuffer, &wavLength) == NULL) {
+     printLn("Couldn't load wav file. Reason: ");
+     printLn(SDL_GetError());
    }
   deviceId = SDL_OpenAudioDevice(NULL, 0, &wavSpec, NULL, 0);
   if (!deviceId) {
-#if !defined(NXDK)
-    std::cout << "The audio device couldn't be opened, thus audio playback is impossible. Reason: " << SDL_GetError() << std::endl;
+    printLn( "The audio device couldn't be opened, thus audio playback is impossible. Reason: ");
+    printLn(SDL_GetError());
   }
-#endif
   return 0;
 }
 
