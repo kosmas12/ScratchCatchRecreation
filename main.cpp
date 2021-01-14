@@ -177,11 +177,12 @@ int Init() {
 #if defined(NXDK)
   XVideoSetMode(WIDTH, HEIGHT, 32, REFRESH_DEFAULT);
 #endif
-  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_AUDIO) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS|SDL_INIT_TIMER|SDL_INIT_AUDIO|SDL_INIT_GAMECONTROLLER) != 0) {
     printLn("Couldn't initialize SDL! Reason: ");
     printLn(SDL_GetError());
     exit(1);
   }
+  SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
   if (IMG_Init(IMG_INIT_PNG) < 0) {
     printLn("Couldn't initialize SDL_image! Reason: ");
     printLn(SDL_GetError());
